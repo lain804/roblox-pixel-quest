@@ -432,13 +432,19 @@ local HideOwnProjectilesToggle = PlayerTab:Toggle({
     end
 })
 
+local function ToggleFromKeybind(toggle, moduleName)
+    local enabled = not toggle:GetValue()
+    toggle:SetValue(enabled)
+    PQ.DisplayStatusText(moduleName .. ": " .. (enabled and "ON" or "OFF"))
+end
+
 KeybindTab:Label({ Text = "Combat" })
 
 KeybindTab:Keybind({
     Text = "Auto Ability",
     Flag = "AutoAbilityKey",
     Callback = function()
-        AutoAbilityToggle:SetValue(not AutoAbilityToggle:GetValue())
+        ToggleFromKeybind(AutoAbilityToggle, "Auto Ability")
     end
 })
 
@@ -446,7 +452,7 @@ KeybindTab:Keybind({
     Text = "Auto Target",
     Flag = "AutoTargetKey",
     Callback = function()
-        AutoTargetToggle:SetValue(not AutoTargetToggle:GetValue())
+        ToggleFromKeybind(AutoTargetToggle, "Auto Target")
     end
 })
 
@@ -454,7 +460,7 @@ KeybindTab:Keybind({
     Text = "Kill Aura",
     Flag = "KillAuraKey",
     Callback = function()
-        KillAuraToggle:SetValue(not KillAuraToggle:GetValue())
+        ToggleFromKeybind(KillAuraToggle, "Kill Aura")
     end
 })
 
@@ -462,7 +468,7 @@ KeybindTab:Keybind({
     Text = "Godmode",
     Flag = "GodmodeKey",
     Callback = function()
-        GodmodeToggle:SetValue(not GodmodeToggle:GetValue())
+        ToggleFromKeybind(GodmodeToggle, "Godmode")
     end
 })
 
@@ -470,7 +476,7 @@ KeybindTab:Keybind({
     Text = "Noclip",
     Flag = "NoclipKey",
     Callback = function()
-        NoclipToggle:SetValue(not NoclipToggle:GetValue())
+        ToggleFromKeybind(NoclipToggle, "Noclip")
     end
 })
 
@@ -478,7 +484,7 @@ KeybindTab:Keybind({
     Text = "Auto EXP",
     Flag = "AutoExpKey",
     Callback = function()
-        AutoExpToggle:SetValue(not AutoExpToggle:GetValue())
+        ToggleFromKeybind(AutoExpToggle, "Auto EXP")
     end
 })
 
@@ -486,7 +492,7 @@ KeybindTab:Keybind({
     Text = "Anti AFK",
     Flag = "AntiAfkKey",
     Callback = function()
-        AntiAfkToggle:SetValue(not AntiAfkToggle:GetValue())
+        ToggleFromKeybind(AntiAfkToggle, "Anti AFK")
     end
 })
 
@@ -494,7 +500,7 @@ KeybindTab:Keybind({
     Text = "Boost Movement Speed",
     Flag = "BoostMovementSpeedKey",
     Callback = function()
-        BoostMovementSpeedToggle:SetValue(not BoostMovementSpeedToggle:GetValue())
+        ToggleFromKeybind(BoostMovementSpeedToggle, "Boost Movement Speed")
     end
 })
 
@@ -502,7 +508,7 @@ KeybindTab:Keybind({
     Text = "Skin Changer",
     Flag = "SkinChangerKey",
     Callback = function()
-        SkinChangerToggle:SetValue(not SkinChangerToggle:GetValue())
+        ToggleFromKeybind(SkinChangerToggle, "Skin Changer")
     end
 })
 
@@ -510,7 +516,7 @@ KeybindTab:Keybind({
     Text = "Hide Own Projectiles",
     Flag = "HideOwnProjectilesKey",
     Callback = function()
-        HideOwnProjectilesToggle:SetValue(not HideOwnProjectilesToggle:GetValue())
+        ToggleFromKeybind(HideOwnProjectilesToggle, "Hide Own Projectiles")
     end
 })
 
@@ -518,7 +524,7 @@ KeybindTab:Keybind({
     Text = "Force Bullet Pierce",
     Flag = "ForceBulletPierceKey",
     Callback = function()
-        ForceBulletPierceToggle:SetValue(not ForceBulletPierceToggle:GetValue())
+        ToggleFromKeybind(ForceBulletPierceToggle, "Force Bullet Pierce")
     end
 })
 
@@ -526,7 +532,7 @@ KeybindTab:Keybind({
     Text = "Force Linear Bullet Pattern",
     Flag = "ForceLinearBulletPatternKey",
     Callback = function()
-        ForceLinearBulletPatternToggle:SetValue(not ForceLinearBulletPatternToggle:GetValue())
+        ToggleFromKeybind(ForceLinearBulletPatternToggle, "Force Linear Bullet Pattern")
     end
 })
 
@@ -534,7 +540,7 @@ KeybindTab:Keybind({
     Text = "Remove Bullet Spread",
     Flag = "RemoveBulletSpreadKey",
     Callback = function()
-        RemoveBulletSpreadToggle:SetValue(not RemoveBulletSpreadToggle:GetValue())
+        ToggleFromKeybind(RemoveBulletSpreadToggle, "Remove Bullet Spread")
     end
 })
 
@@ -542,7 +548,7 @@ KeybindTab:Keybind({
     Text = "Bullets Penetrate Terrain",
     Flag = "BulletsPenetrateTerrainKey",
     Callback = function()
-        BulletsPenetrateTerrainToggle:SetValue(not BulletsPenetrateTerrainToggle:GetValue())
+        ToggleFromKeybind(BulletsPenetrateTerrainToggle, "Bullets Penetrate Terrain")
     end
 })
 
@@ -550,7 +556,7 @@ KeybindTab:Keybind({
     Text = "Auto Claim Quests",
     Flag = "AutoClaimQuestsKey",
     Callback = function()
-        AutoClaimQuestsToggle:SetValue(not AutoClaimQuestsToggle:GetValue())
+        ToggleFromKeybind(AutoClaimQuestsToggle, "Auto Claim Quests")
     end
 })
 
@@ -558,7 +564,7 @@ KeybindTab:Keybind({
     Text = "Auto Claim Achievements",
     Flag = "AutoClaimAchievementsKey",
     Callback = function()
-        AutoClaimAchievementsToggle:SetValue(not AutoClaimAchievementsToggle:GetValue())
+        ToggleFromKeybind(AutoClaimAchievementsToggle, "Auto Claim Achievements")
     end
 })
 
@@ -566,7 +572,7 @@ KeybindTab:Keybind({
     Text = "Auto Claim Daily Rewards",
     Flag = "AutoClaimDailyRewardsKey",
     Callback = function()
-        AutoClaimDailyRewardsToggle:SetValue(not AutoClaimDailyRewardsToggle:GetValue())
+        ToggleFromKeybind(AutoClaimDailyRewardsToggle, "Auto Claim Daily Rewards")
     end
 })
 
@@ -574,7 +580,7 @@ KeybindTab:Keybind({
     Text = "No Replication Delay",
     Flag = "NoReplicationDelayKey",
     Callback = function()
-        NoReplicationDelayToggle:SetValue(not NoReplicationDelayToggle:GetValue())
+        ToggleFromKeybind(NoReplicationDelayToggle, "No Replication Delay")
     end
 })
 
@@ -582,7 +588,7 @@ KeybindTab:Keybind({
     Text = "Debuff Immunity",
     Flag = "DebuffImmunityKey",
     Callback = function()
-        DebuffImmunityToggle:SetValue(not DebuffImmunityToggle:GetValue())
+        ToggleFromKeybind(DebuffImmunityToggle, "Debuff Immunity")
     end
 })
 
