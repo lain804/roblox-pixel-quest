@@ -20,10 +20,10 @@ local GodmodeMode = {
 local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/lain804/luaui/refs/heads/master/main.lua"))()
 
 local Library = UI.new({
-    Title = "Pixel Quest",
+    Title = "discord.gg/hS7xx7pFBs",
     Size = UDim2.new(0, 640, 0, 460),
     Position = UDim2.new(0, 100, 0, 100),
-    GuiName = "PixelQuestUI",
+    GuiName = "discord.gg/hS7xx7pFBs",
     ConfigFile = "PixelQuestUI.json",
     ConfigFolder = "PixelQuest",
     AutoSave = true,
