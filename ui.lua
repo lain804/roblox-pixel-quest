@@ -17,6 +17,11 @@ local GodmodeMode = {
     PREVENT_DEATH_ONLY = nil
 }
 
+local AntiStaffMode = {
+    notify = 1,
+    leave = 2
+}
+
 local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/lain804/luaui/refs/heads/master/main.lua"))()
 
 local Library = UI.new({
@@ -401,6 +406,28 @@ local AntiAfkToggle = PlayerTab:Toggle({
     end
 })
 
+local AntiStaffModeDropdown
+
+local AntiStaffToggle = PlayerTab:Toggle({
+    Text = "Anti Staff",
+    Flag = "AntiStaff",
+    Default = false,
+    Callback = function(value)
+        PQ.AntiStaff:SetMode(AntiStaffMode[AntiStaffModeDropdown and AntiStaffModeDropdown:GetValue() or "notify"])
+        PQ.AntiStaff:Toggle(value)
+    end
+})
+
+AntiStaffModeDropdown = PlayerTab:Dropdown({
+    Text = "Anti Staff Mode",
+    Flag = "AntiStaffMode",
+    Options = { "notify", "leave" },
+    Default = "notify",
+    Callback = function(value)
+        PQ.AntiStaff:SetMode(AntiStaffMode[value])
+    end
+})
+
 local SkinName
 
 local SkinChangerToggle = PlayerTab:Toggle({
@@ -493,6 +520,14 @@ KeybindTab:Keybind({
     Flag = "AntiAfkKey",
     Callback = function()
         ToggleFromKeybind(AntiAfkToggle, "Anti AFK")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Anti Staff",
+    Flag = "AntiStaffKey",
+    Callback = function()
+        ToggleFromKeybind(AntiStaffToggle, "Anti Staff")
     end
 })
 
@@ -680,6 +715,8 @@ SetElementOrder(NoclipToggle, 210)
 SetLabelOrder(PlayerTab, "Misc", 300)
 SetElementOrder(SkinChangerToggle, 310)
 SetElementOrder(SkinName, 320)
+SetElementOrder(AntiStaffToggle, 330)
+SetElementOrder(AntiStaffModeDropdown, 340)
 SetElementOrder(NoReplicationDelayToggle, 410)
 SetElementOrder(DebuffImmunityToggle, 420)
 SetElementOrder(BoostMovementSpeedToggle, 430)
@@ -707,6 +744,7 @@ SetLabelOrder(KeybindTab, "Player", 300)
 SetControlOrderByText(KeybindTab, "Godmode", 310)
 SetControlOrderByText(KeybindTab, "Noclip", 320)
 SetControlOrderByText(KeybindTab, "Skin Changer", 330)
+SetControlOrderByText(KeybindTab, "Anti Staff", 340)
 SetControlOrderByText(KeybindTab, "No Replication Delay", 410)
 SetControlOrderByText(KeybindTab, "Debuff Immunity", 420)
 SetControlOrderByText(KeybindTab, "Boost Movement Speed", 430)
