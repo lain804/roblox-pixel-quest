@@ -328,6 +328,8 @@ local AutoExpToggle = AutoTab:Toggle({
     end
 })
 
+AutoTab:Separator({ Text = "" })
+
 PlayerTab:Label({ Text = "Movement" })
 
 local NoclipToggle = PlayerTab:Toggle({
@@ -702,11 +704,14 @@ SetSeparatorOrders(CombatTab, { 190, 290, 390 })
 
 SetLabelOrder(AutoTab, "Collection", 100)
 SetElementOrder(AutoExpToggle, 110)
-SetLabelOrder(AutoTab, "Claims", 200)
-SetElementOrder(AutoClaimQuestsToggle, 210)
-SetElementOrder(AutoClaimAchievementsToggle, 220)
-SetElementOrder(AutoClaimDailyRewardsToggle, 230)
-SetSeparatorOrders(AutoTab, { 190 })
+SetLabelOrder(AutoTab, "Dealer", 200)
+SetElementOrder(DealerBiomeDropdown, 210)
+SetElementOrder(ShowDealerPromptButton, 220)
+SetLabelOrder(AutoTab, "Claims", 300)
+SetElementOrder(AutoClaimQuestsToggle, 310)
+SetElementOrder(AutoClaimAchievementsToggle, 320)
+SetElementOrder(AutoClaimDailyRewardsToggle, 330)
+SetSeparatorOrders(AutoTab, { 190, 290 })
 
 SetLabelOrder(PlayerTab, "Defense", 100)
 SetElementOrder(GodmodeToggle, 110)
