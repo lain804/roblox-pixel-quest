@@ -328,8 +328,6 @@ local AutoExpToggle = AutoTab:Toggle({
     end
 })
 
-AutoTab:Separator({ Text = "" })
-
 PlayerTab:Label({ Text = "Movement" })
 
 local NoclipToggle = PlayerTab:Toggle({
