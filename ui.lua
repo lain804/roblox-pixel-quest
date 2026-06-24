@@ -53,6 +53,10 @@ CombatTab:Label({ Text = "Ability" })
 
 local AutoAbilityHealthThreshold
 local AutoAbilityManaThreshold
+local AutoAbilityUseOnTrainingDummies
+local AutoAbilityUseOnBossesOnly
+local AutoAbilityRequireEnemyNear
+local AutoAbilityTargetInvulnerable
 
 local AutoAbilityToggle = CombatTab:Toggle({
     Text = "Auto Ability",
@@ -64,6 +68,10 @@ local AutoAbilityToggle = CombatTab:Toggle({
 
         PQ.AutoAbility:SetHealthThresholdPercentage(healthThreshold > 0 and healthThreshold or nil)
         PQ.AutoAbility:SetManaThresholdPercentage(manaThreshold > 0 and manaThreshold or nil)
+        PQ.AutoAbility:SetUseOnTrainingDummies(AutoAbilityUseOnTrainingDummies and AutoAbilityUseOnTrainingDummies:GetValue() or false)
+        PQ.AutoAbility:SetUseAbilityOnBossesOnly(AutoAbilityUseOnBossesOnly and AutoAbilityUseOnBossesOnly:GetValue() or false)
+        PQ.AutoAbility:SetRequireEnemyNear(AutoAbilityRequireEnemyNear and AutoAbilityRequireEnemyNear:GetValue() or false)
+        PQ.AutoAbility:SetTargetInvulnerable(AutoAbilityTargetInvulnerable and AutoAbilityTargetInvulnerable:GetValue() or false)
         PQ.AutoAbility:Toggle(value)
     end
 })
@@ -89,6 +97,42 @@ AutoAbilityManaThreshold = CombatTab:Slider({
     Increment = 1,
     Callback = function(value)
         PQ.AutoAbility:SetManaThresholdPercentage(value > 0 and value or nil)
+    end
+})
+
+AutoAbilityUseOnTrainingDummies = CombatTab:Toggle({
+    Text = "Use On Training Dummies",
+    Flag = "AutoAbilityUseOnTrainingDummies",
+    Default = true,
+    Callback = function(value)
+        PQ.AutoAbility:SetUseOnTrainingDummies(value)
+    end
+})
+
+AutoAbilityUseOnBossesOnly = CombatTab:Toggle({
+    Text = "Use On Bosses Only",
+    Flag = "AutoAbilityUseOnBossesOnly",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoAbility:SetUseAbilityOnBossesOnly(value)
+    end
+})
+
+AutoAbilityRequireEnemyNear = CombatTab:Toggle({
+    Text = "Require Enemy Near",
+    Flag = "AutoAbilityRequireEnemyNear",
+    Default = true,
+    Callback = function(value)
+        PQ.AutoAbility:SetRequireEnemyNear(value)
+    end
+})
+
+AutoAbilityTargetInvulnerable = CombatTab:Toggle({
+    Text = "Target Invulnerable",
+    Flag = "AutoAbilityTargetInvulnerable",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoAbility:SetTargetInvulnerable(value)
     end
 })
 
@@ -170,6 +214,7 @@ local KillAuraTileRadius
 local KillAuraModeDropdown
 local KillAuraInvulnerable
 local KillAuraOffscreen
+local KillAuraHitTrainingDummies
 
 local KillAuraToggle = CombatTab:Toggle({
     Text = "Kill Aura",
@@ -182,6 +227,7 @@ local KillAuraToggle = CombatTab:Toggle({
         PQ.KillAura:SetMode(KillAuraMode[KillAuraModeDropdown and KillAuraModeDropdown:GetValue() or "adaptive"])
         PQ.KillAura:SetTargetInvulnerable(KillAuraInvulnerable and KillAuraInvulnerable:GetValue() or false)
         PQ.KillAura:SetTargetOffscreen(KillAuraOffscreen and KillAuraOffscreen:GetValue() or false)
+        PQ.KillAura:SetHitTrainingDummies(KillAuraHitTrainingDummies and KillAuraHitTrainingDummies:GetValue() or false)
         PQ.KillAura:Toggle(value)
     end
 })
@@ -248,17 +294,17 @@ KillAuraOffscreen = CombatTab:Toggle({
     end
 })
 
-CombatTab:Separator({ Text = "" })
-CombatTab:Label({ Text = "Projectiles" })
-
-local ForceBulletPierceToggle = CombatTab:Toggle({
-    Text = "Force Bullet Pierce",
-    Flag = "ForceBulletPierce",
-    Default = false,
+KillAuraHitTrainingDummies = CombatTab:Toggle({
+    Text = "Hit Training Dummies",
+    Flag = "KillAuraHitTrainingDummies",
+    Default = true,
     Callback = function(value)
-        PQ.ForceBulletPierce:Toggle(value)
+        PQ.KillAura:SetHitTrainingDummies(value)
     end
 })
+
+CombatTab:Separator({ Text = "" })
+CombatTab:Label({ Text = "Projectiles" })
 
 local ForceLinearBulletPatternToggle = CombatTab:Toggle({
     Text = "Force Linear Bullet Pattern",
@@ -328,6 +374,195 @@ local AutoExpToggle = AutoTab:Toggle({
     end
 })
 
+local function SortedTierNames(tiers)
+    local names = {}
+    for tierName in tiers do
+        if tierName ~= "T0" then
+            table.insert(names, tierName)
+        end
+    end
+    table.sort(names, function(a, b)
+        local aNum = a:match("^T(%d+)$")
+        local bNum = b:match("^T(%d+)$")
+        if aNum and bNum then
+            return tonumber(aNum) < tonumber(bNum)
+        elseif aNum then
+            return true
+        elseif bNum then
+            return false
+        else
+            return a < b
+        end
+    end)
+    return names
+end
+
+local AutoLootTiers = SortedTierNames(PQ.AutoLoot.TIERS_TO_LOOT)
+local AutoSellTiers = SortedTierNames(PQ.AutoSell.TIERS_TO_SELL)
+
+local function ApplyTierSelection(allTiers, selected, setEnabled)
+    local selectedSet = {}
+    for _, tierName in selected or {} do
+        selectedSet[tierName] = true
+    end
+    for _, tierName in allTiers do
+        setEnabled(tierName, selectedSet[tierName] == true)
+    end
+end
+
+AutoTab:Separator({ Text = "" })
+AutoTab:Label({ Text = "Loot" })
+
+local AutoLootMinValor
+local AutoLootPickupScrolls
+local AutoLootPickupSouls
+local AutoLootCooldownTimeout
+local AutoLootTierDropdown
+
+local AutoLootToggle = AutoTab:Toggle({
+    Text = "Auto Loot",
+    Flag = "AutoLoot",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoLoot:SetMinValor(tonumber(AutoLootMinValor and AutoLootMinValor:GetValue()) or 0)
+        PQ.AutoLoot:SetPickupScrolls(AutoLootPickupScrolls and AutoLootPickupScrolls:GetValue() or false)
+        PQ.AutoLoot:SetPickupSouls(AutoLootPickupSouls and AutoLootPickupSouls:GetValue() or false)
+        PQ.AutoLoot:SetCooldownTimeout(tonumber(AutoLootCooldownTimeout and AutoLootCooldownTimeout:GetValue()) or 1)
+        ApplyTierSelection(AutoLootTiers, AutoLootTierDropdown and AutoLootTierDropdown:GetValue(), function(tierName, enabled)
+            PQ.AutoLoot:SetLootTierEnabled(tierName, enabled)
+        end)
+        PQ.AutoLoot:Toggle(value)
+    end
+})
+
+AutoLootMinValor = AutoTab:Textbox({
+    Text = "Min Valor",
+    Placeholder = "0",
+    Flag = "AutoLootMinValor",
+    Default = "0",
+    Callback = function(value)
+        PQ.AutoLoot:SetMinValor(tonumber(value) or 0)
+    end
+})
+
+AutoLootPickupScrolls = AutoTab:Toggle({
+    Text = "Pickup Scrolls",
+    Flag = "AutoLootPickupScrolls",
+    Default = true,
+    Callback = function(value)
+        PQ.AutoLoot:SetPickupScrolls(value)
+    end
+})
+
+AutoLootPickupSouls = AutoTab:Toggle({
+    Text = "Pickup Souls",
+    Flag = "AutoLootPickupSouls",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoLoot:SetPickupSouls(value)
+    end
+})
+
+AutoLootCooldownTimeout = AutoTab:Slider({
+    Text = "Cooldown Timeout",
+    Flag = "AutoLootCooldownTimeout",
+    Min = 0,
+    Max = 5,
+    Default = 1,
+    Increment = 0.05,
+    Callback = function(value)
+        PQ.AutoLoot:SetCooldownTimeout(value)
+    end
+})
+
+AutoLootTierDropdown = AutoTab:Dropdown({
+    Text = "Tiers",
+    Flag = "AutoLootTiers",
+    Multi = true,
+    Options = AutoLootTiers,
+    Default = {},
+    Callback = function(value)
+        ApplyTierSelection(AutoLootTiers, value, function(tierName, enabled)
+            PQ.AutoLoot:SetLootTierEnabled(tierName, enabled)
+        end)
+    end
+})
+
+AutoTab:Separator({ Text = "" })
+AutoTab:Label({ Text = "Sell" })
+
+local AutoSellMinValor
+local AutoSellMaxValor
+local AutoSellSellScrolls
+local AutoSellTierDropdown
+
+local AutoSellToggle = AutoTab:Toggle({
+    Text = "Auto Sell",
+    Flag = "AutoSell",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoSell:SetMinSellValor(tonumber(AutoSellMinValor and AutoSellMinValor:GetValue()) or 0)
+        PQ.AutoSell:SetMaxSellValor(tonumber(AutoSellMaxValor and AutoSellMaxValor:GetValue()) or math.huge)
+        PQ.AutoSell.sellScrolls = AutoSellSellScrolls and AutoSellSellScrolls:GetValue() or false
+        ApplyTierSelection(AutoSellTiers, AutoSellTierDropdown and AutoSellTierDropdown:GetValue(), function(tierName, enabled)
+            PQ.AutoSell:SetSellTierEnabled(tierName, enabled)
+        end)
+        PQ.AutoSell:Toggle(value)
+    end
+})
+
+AutoSellMinValor = AutoTab:Textbox({
+    Text = "Min Sell Valor",
+    Placeholder = "0",
+    Flag = "AutoSellMinValor",
+    Default = "0",
+    Callback = function(value)
+        PQ.AutoSell:SetMinSellValor(tonumber(value) or 0)
+    end
+})
+
+AutoSellMaxValor = AutoTab:Textbox({
+    Text = "Max Sell Valor",
+    Placeholder = "inf",
+    Flag = "AutoSellMaxValor",
+    Default = "",
+    Callback = function(value)
+        PQ.AutoSell:SetMaxSellValor(tonumber(value) or math.huge)
+    end
+})
+
+AutoSellSellScrolls = AutoTab:Toggle({
+    Text = "Sell Scrolls",
+    Flag = "AutoSellSellScrolls",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoSell.sellScrolls = value
+    end
+})
+
+AutoSellTierDropdown = AutoTab:Dropdown({
+    Text = "Tiers",
+    Flag = "AutoSellTiers",
+    Multi = true,
+    Options = AutoSellTiers,
+    Default = {},
+    Callback = function(value)
+        ApplyTierSelection(AutoSellTiers, value, function(tierName, enabled)
+            PQ.AutoSell:SetSellTierEnabled(tierName, enabled)
+        end)
+    end
+})
+
+AutoTab:Separator({ Text = "" })
+AutoTab:Label({ Text = "Inventory" })
+
+local DropInventoryButton = AutoTab:Button({
+    Text = "Drop Inventory",
+    Callback = function()
+        PQ.DropInventory()
+    end
+})
+
 PlayerTab:Label({ Text = "Movement" })
 
 local NoclipToggle = PlayerTab:Toggle({
@@ -391,6 +626,29 @@ local DebuffImmunityToggle = PlayerTab:Toggle({
     Default = false,
     Callback = function(value)
         PQ.DebuffImmunity:Toggle(value)
+    end
+})
+
+-- Init populates effectNames/effectsDisabled; it is idempotent and lazily run by
+-- Toggle, so call it here to have the effect list ready for the dropdown options.
+PQ.DebuffImmunity:Init()
+
+local DebuffImmunityEffects = {}
+for _, effectName in PQ.DebuffImmunity.effectNames do
+    table.insert(DebuffImmunityEffects, effectName)
+end
+table.sort(DebuffImmunityEffects)
+
+local DebuffImmunityEffectsDropdown = PlayerTab:Dropdown({
+    Text = "Immune To Effects",
+    Flag = "DebuffImmunityEffects",
+    Multi = true,
+    Options = DebuffImmunityEffects,
+    Default = {},
+    Callback = function(value)
+        ApplyTierSelection(DebuffImmunityEffects, value, function(effectName, enabled)
+            PQ.DebuffImmunity:SetEffectEnabled(effectName, enabled)
+        end)
     end
 })
 
@@ -458,6 +716,18 @@ local HideOwnProjectilesToggle = PlayerTab:Toggle({
         PQ.HideOwnProjectiles:Toggle(value)
     end
 })
+
+local ForceShowAllSideButtonsToggle = PlayerTab:Toggle({
+    Text = "Force Show All Side Buttons",
+    Flag = "ForceShowAllSideButtons",
+    Default = false,
+    Callback = function(value)
+        PQ.ForceShowAllSideButtons:Toggle(value)
+    end
+})
+
+PlayerTab:Separator({ Text = "" })
+PlayerTab:Label({ Text = "Visuals" })
 
 local function ToggleFromKeybind(toggle, moduleName)
     local enabled = not toggle:GetValue()
@@ -556,10 +826,10 @@ KeybindTab:Keybind({
 })
 
 KeybindTab:Keybind({
-    Text = "Force Bullet Pierce",
-    Flag = "ForceBulletPierceKey",
+    Text = "Force Show All Side Buttons",
+    Flag = "ForceShowAllSideButtonsKey",
     Callback = function()
-        ToggleFromKeybind(ForceBulletPierceToggle, "Force Bullet Pierce")
+        ToggleFromKeybind(ForceShowAllSideButtonsToggle, "Force Show All Side Buttons")
     end
 })
 
@@ -608,6 +878,31 @@ KeybindTab:Keybind({
     Flag = "AutoClaimDailyRewardsKey",
     Callback = function()
         ToggleFromKeybind(AutoClaimDailyRewardsToggle, "Auto Claim Daily Rewards")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Auto Loot",
+    Flag = "AutoLootKey",
+    Callback = function()
+        ToggleFromKeybind(AutoLootToggle, "Auto Loot")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Auto Sell",
+    Flag = "AutoSellKey",
+    Callback = function()
+        ToggleFromKeybind(AutoSellToggle, "Auto Sell")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Drop Inventory",
+    Flag = "DropInventoryKey",
+    Callback = function()
+        PQ.DropInventory()
+        PQ.DisplayStatusText("Drop Inventory")
     end
 })
 
@@ -679,6 +974,7 @@ SetElementOrder(KillAuraTileRadius, 140)
 SetElementOrder(KillAuraModeDropdown, 150)
 SetElementOrder(KillAuraInvulnerable, 160)
 SetElementOrder(KillAuraOffscreen, 170)
+SetElementOrder(KillAuraHitTrainingDummies, 180)
 
 SetLabelOrder(CombatTab, "Auto Target", 200)
 SetElementOrder(AutoTargetToggle, 210)
@@ -692,9 +988,12 @@ SetLabelOrder(CombatTab, "Ability", 300)
 SetElementOrder(AutoAbilityToggle, 310)
 SetElementOrder(AutoAbilityHealthThreshold, 320)
 SetElementOrder(AutoAbilityManaThreshold, 330)
+SetElementOrder(AutoAbilityUseOnTrainingDummies, 340)
+SetElementOrder(AutoAbilityUseOnBossesOnly, 350)
+SetElementOrder(AutoAbilityRequireEnemyNear, 360)
+SetElementOrder(AutoAbilityTargetInvulnerable, 370)
 
 SetLabelOrder(CombatTab, "Projectiles", 400)
-SetElementOrder(ForceBulletPierceToggle, 410)
 SetElementOrder(ForceLinearBulletPatternToggle, 420)
 SetElementOrder(RemoveBulletSpreadToggle, 430)
 SetElementOrder(BulletsPenetrateTerrainToggle, 440)
@@ -709,30 +1008,55 @@ SetLabelOrder(AutoTab, "Claims", 300)
 SetElementOrder(AutoClaimQuestsToggle, 310)
 SetElementOrder(AutoClaimAchievementsToggle, 320)
 SetElementOrder(AutoClaimDailyRewardsToggle, 330)
-SetSeparatorOrders(AutoTab, { 190, 290 })
+
+SetLabelOrder(AutoTab, "Loot", 400)
+SetElementOrder(AutoLootToggle, 410)
+SetElementOrder(AutoLootMinValor, 420)
+SetElementOrder(AutoLootPickupScrolls, 430)
+SetElementOrder(AutoLootPickupSouls, 435)
+SetElementOrder(AutoLootCooldownTimeout, 437)
+SetElementOrder(AutoLootTierDropdown, 440)
+
+SetLabelOrder(AutoTab, "Sell", 500)
+SetElementOrder(AutoSellToggle, 510)
+SetElementOrder(AutoSellMinValor, 520)
+SetElementOrder(AutoSellMaxValor, 530)
+SetElementOrder(AutoSellSellScrolls, 540)
+SetElementOrder(AutoSellTierDropdown, 550)
+
+SetLabelOrder(AutoTab, "Inventory", 600)
+SetElementOrder(DropInventoryButton, 610)
+
+SetSeparatorOrders(AutoTab, { 190, 390, 490, 590 })
 
 SetLabelOrder(PlayerTab, "Defense", 100)
 SetElementOrder(GodmodeToggle, 110)
+SetElementOrder(NoReplicationDelayToggle, 120)
+SetElementOrder(DebuffImmunityToggle, 130)
+SetElementOrder(DebuffImmunityEffectsDropdown, 135)
+
 SetLabelOrder(PlayerTab, "Movement", 200)
 SetElementOrder(NoclipToggle, 210)
-SetLabelOrder(PlayerTab, "Misc", 300)
+SetElementOrder(BoostMovementSpeedToggle, 220)
+SetElementOrder(MovementSpeedMulti, 230)
+
+SetLabelOrder(PlayerTab, "Visuals", 300)
 SetElementOrder(SkinChangerToggle, 310)
 SetElementOrder(SkinName, 320)
-SetElementOrder(AntiStaffToggle, 330)
-SetElementOrder(AntiStaffModeDropdown, 340)
-SetElementOrder(NoReplicationDelayToggle, 410)
-SetElementOrder(DebuffImmunityToggle, 420)
-SetElementOrder(BoostMovementSpeedToggle, 430)
-SetElementOrder(MovementSpeedMulti, 440)
-SetElementOrder(AntiAfkToggle, 450)
-SetElementOrder(HideOwnProjectilesToggle, 460)
-SetSeparatorOrders(PlayerTab, { 190, 290 })
+SetElementOrder(HideOwnProjectilesToggle, 330)
+SetElementOrder(ForceShowAllSideButtonsToggle, 340)
+
+SetLabelOrder(PlayerTab, "Misc", 400)
+SetElementOrder(AntiAfkToggle, 410)
+SetElementOrder(AntiStaffToggle, 420)
+SetElementOrder(AntiStaffModeDropdown, 430)
+
+SetSeparatorOrders(PlayerTab, { 190, 290, 390 })
 
 SetLabelOrder(KeybindTab, "Combat", 100)
 SetControlOrderByText(KeybindTab, "Kill Aura", 110)
 SetControlOrderByText(KeybindTab, "Auto Target", 120)
 SetControlOrderByText(KeybindTab, "Auto Ability", 130)
-SetControlOrderByText(KeybindTab, "Force Bullet Pierce", 140)
 SetControlOrderByText(KeybindTab, "Force Linear Bullet Pattern", 150)
 SetControlOrderByText(KeybindTab, "Remove Bullet Spread", 160)
 SetControlOrderByText(KeybindTab, "Bullets Penetrate Terrain", 170)
@@ -742,6 +1066,9 @@ SetControlOrderByText(KeybindTab, "Auto EXP", 210)
 SetControlOrderByText(KeybindTab, "Auto Claim Quests", 220)
 SetControlOrderByText(KeybindTab, "Auto Claim Achievements", 230)
 SetControlOrderByText(KeybindTab, "Auto Claim Daily Rewards", 240)
+SetControlOrderByText(KeybindTab, "Auto Loot", 250)
+SetControlOrderByText(KeybindTab, "Auto Sell", 260)
+SetControlOrderByText(KeybindTab, "Drop Inventory", 270)
 
 SetLabelOrder(KeybindTab, "Player", 300)
 SetControlOrderByText(KeybindTab, "Godmode", 310)
@@ -753,6 +1080,7 @@ SetControlOrderByText(KeybindTab, "Debuff Immunity", 420)
 SetControlOrderByText(KeybindTab, "Boost Movement Speed", 430)
 SetControlOrderByText(KeybindTab, "Anti AFK", 440)
 SetControlOrderByText(KeybindTab, "Hide Own Projectiles", 450)
+SetControlOrderByText(KeybindTab, "Force Show All Side Buttons", 460)
 SetSeparatorOrders(KeybindTab, { 190, 290 })
 
 CombatTab:_RefreshCanvas()
