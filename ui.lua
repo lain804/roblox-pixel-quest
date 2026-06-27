@@ -1132,18 +1132,93 @@ ConfigTab:Label({ Text = "Background" })
 local BackgroundImageBox
 local BackgroundEnabledToggle
 
+-- how translucent the controls/tabs/title bar become while the background is on,
+-- so the image shows through them (0 = opaque, 1 = fully see-through).
+local ELEMENT_TRANSPARENCY = 0.4
+-- shared with the framework's own pass so they don't fight over the same controls.
+local BG_ATTR = "__uiOrigBgTransparency"
+
+-- resolve a textbox value into a usable image string. anything containing
+-- "rbxasset" is used directly; a bare id becomes rbxassetid://; an http url is
+-- used as-is; otherwise it is treated as a local file name and resolved through
+-- the executor's getcustomasset, e.g. "penar.png" -> getcustomasset("penar.png").
+local function resolveBackgroundImage(value)
+    if type(value) ~= "string" or value == "" then
+        return value
+    end
+    if string.find(value, "rbxasset", 1, true) then
+        return value
+    end
+    local digits = value:match("^%s*(%d+)%s*$")
+    if digits then
+        return "rbxassetid://" .. digits
+    end
+    if string.find(value, "^https?://") then
+        return value
+    end
+    local getCustomAsset = getcustomasset
+        or (getgenv and getgenv().getcustomasset)
+        or (getgenv and getgenv().getsynasset)
+    if getCustomAsset then
+        local ok, asset = pcall(getCustomAsset, value)
+        if ok and type(asset) == "string" and asset ~= "" then
+            return asset
+        end
+    end
+    return value
+end
+
+-- make the title bar, tabs and every control translucent (or restore them) so the
+-- image is visible through them, not just behind them. originals are remembered in
+-- an attribute so toggling off is lossless.
+local function setChromeTransparency(on)
+    local main = Library.MainFrame
+    if not main then return end
+    for _, obj in ipairs(main:GetDescendants()) do
+        if obj:IsA("GuiObject")
+            and obj ~= Library.BackgroundImage
+            and obj ~= Library.ContentArea
+            and obj.Name ~= "Background"
+        then
+            if on then
+                if obj:GetAttribute(BG_ATTR) == nil then
+                    if obj.BackgroundTransparency < 1 then
+                        obj:SetAttribute(BG_ATTR, obj.BackgroundTransparency)
+                        obj.BackgroundTransparency = ELEMENT_TRANSPARENCY
+                    end
+                else
+                    obj.BackgroundTransparency = ELEMENT_TRANSPARENCY
+                end
+            else
+                local original = obj:GetAttribute(BG_ATTR)
+                if original ~= nil then
+                    obj.BackgroundTransparency = original
+                    obj:SetAttribute(BG_ATTR, nil)
+                end
+            end
+        end
+    end
+end
+
+local function applyBackground(on)
+    local id = BackgroundImageBox and BackgroundImageBox:GetValue() or ""
+    if on and id ~= "" then
+        Library:SetBackground(resolveBackgroundImage(id))
+        setChromeTransparency(true)
+    else
+        Library:SetBackgroundEnabled(false)
+        setChromeTransparency(false)
+    end
+end
+
 BackgroundImageBox = ConfigTab:Textbox({
     Text = "Background ID",
-    Placeholder = "rbxassetid://...",
+    Placeholder = "rbxassetid:// or penar.png",
     Flag = "BackgroundImageId",
     Default = "",
-    Callback = function(value)
+    Callback = function()
         if BackgroundEnabledToggle and BackgroundEnabledToggle:GetValue() then
-            if value ~= "" then
-                Library:SetBackground(value)
-            else
-                Library:SetBackgroundEnabled(false)
-            end
+            applyBackground(true)
         end
     end
 })
@@ -1165,14 +1240,7 @@ BackgroundEnabledToggle = ConfigTab:Toggle({
     Flag = "BackgroundEnabled",
     Default = false,
     Callback = function(enabled)
-        if enabled then
-            local id = BackgroundImageBox and BackgroundImageBox:GetValue() or ""
-            if id ~= "" then
-                Library:SetBackground(id)
-            end
-        else
-            Library:SetBackgroundEnabled(false)
-        end
+        applyBackground(enabled)
     end
 })
 
