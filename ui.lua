@@ -563,6 +563,13 @@ local DropInventoryButton = AutoTab:Button({
     end
 })
 
+local SellInventoryButton = AutoTab:Button({
+    Text = "Sell Inventory",
+    Callback = function()
+        PQ.SellInventory()
+    end
+})
+
 PlayerTab:Label({ Text = "Movement" })
 
 local NoclipToggle = PlayerTab:Toggle({
@@ -729,10 +736,14 @@ local ForceShowAllSideButtonsToggle = PlayerTab:Toggle({
 PlayerTab:Separator({ Text = "" })
 PlayerTab:Label({ Text = "Visuals" })
 
+local KeybindStatusMessagesToggle
+
 local function ToggleFromKeybind(toggle, moduleName)
     local enabled = not toggle:GetValue()
     toggle:SetValue(enabled)
-    PQ.DisplayStatusText(moduleName .. ": " .. (enabled and "ON" or "OFF"))
+    if not KeybindStatusMessagesToggle or KeybindStatusMessagesToggle:GetValue() then
+        PQ.DisplayStatusText(moduleName .. ": " .. (enabled and "ON" or "OFF"))
+    end
 end
 
 KeybindTab:Label({ Text = "Combat" })
@@ -907,6 +918,15 @@ KeybindTab:Keybind({
 })
 
 KeybindTab:Keybind({
+    Text = "Sell Inventory",
+    Flag = "SellInventoryKey",
+    Callback = function()
+        PQ.SellInventory()
+        PQ.DisplayStatusText("Sell Inventory")
+    end
+})
+
+KeybindTab:Keybind({
     Text = "No Replication Delay",
     Flag = "NoReplicationDelayKey",
     Callback = function()
@@ -1026,6 +1046,7 @@ SetElementOrder(AutoSellTierDropdown, 550)
 
 SetLabelOrder(AutoTab, "Inventory", 600)
 SetElementOrder(DropInventoryButton, 610)
+SetElementOrder(SellInventoryButton, 620)
 
 SetSeparatorOrders(AutoTab, { 190, 390, 490, 590 })
 
@@ -1069,6 +1090,7 @@ SetControlOrderByText(KeybindTab, "Auto Claim Daily Rewards", 240)
 SetControlOrderByText(KeybindTab, "Auto Loot", 250)
 SetControlOrderByText(KeybindTab, "Auto Sell", 260)
 SetControlOrderByText(KeybindTab, "Drop Inventory", 270)
+SetControlOrderByText(KeybindTab, "Sell Inventory", 280)
 
 SetLabelOrder(KeybindTab, "Player", 300)
 SetControlOrderByText(KeybindTab, "Godmode", 310)
@@ -1088,6 +1110,73 @@ AutoTab:_RefreshCanvas()
 PlayerTab:_RefreshCanvas()
 KeybindTab:_RefreshCanvas()
 
+ConfigTab:Label({ Text = "Settings" })
+
+local ShowUIOnStartupToggle = ConfigTab:Toggle({
+    Text = "Show UI On Startup",
+    Flag = "ShowUIOnStartup",
+    Default = true,
+    Callback = function() end
+})
+
+KeybindStatusMessagesToggle = ConfigTab:Toggle({
+    Text = "Keybind Status Messages",
+    Flag = "KeybindStatusMessages",
+    Default = true,
+    Callback = function() end
+})
+
+ConfigTab:Separator({ Text = "" })
+ConfigTab:Label({ Text = "Background" })
+
+local BackgroundImageBox
+local BackgroundEnabledToggle
+
+BackgroundImageBox = ConfigTab:Textbox({
+    Text = "Background ID",
+    Placeholder = "rbxassetid://...",
+    Flag = "BackgroundImageId",
+    Default = "",
+    Callback = function(value)
+        if BackgroundEnabledToggle and BackgroundEnabledToggle:GetValue() then
+            if value ~= "" then
+                Library:SetBackground(value)
+            else
+                Library:SetBackgroundEnabled(false)
+            end
+        end
+    end
+})
+
+ConfigTab:Slider({
+    Text = "Background Transparency",
+    Flag = "BackgroundTransparency",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Increment = 1,
+    Callback = function(value)
+        Library:SetBackgroundTransparency(value / 100)
+    end
+})
+
+BackgroundEnabledToggle = ConfigTab:Toggle({
+    Text = "Background Image",
+    Flag = "BackgroundEnabled",
+    Default = false,
+    Callback = function(enabled)
+        if enabled then
+            local id = BackgroundImageBox and BackgroundImageBox:GetValue() or ""
+            if id ~= "" then
+                Library:SetBackground(id)
+            end
+        else
+            Library:SetBackgroundEnabled(false)
+        end
+    end
+})
+
+ConfigTab:Separator({ Text = "" })
 ConfigTab:Label({ Text = "Config" })
 
 ConfigTab:Button({
@@ -1110,3 +1199,9 @@ ConfigTab:Button({
         Library:Destroy()
     end
 })
+
+-- Honor the saved "Show UI On Startup" preference (config is auto-loaded by now).
+-- Press the toggle keybind (RightShift) to reopen the window if hidden.
+if not ShowUIOnStartupToggle:GetValue() then
+    Library.MainFrame.Visible = false
+end
