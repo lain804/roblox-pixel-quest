@@ -24,9 +24,16 @@ local AntiStaffMode = {
 
 local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/lain804/luaui/refs/heads/master/main.lua"))()
 
+-- The window and all of its controls are authored at fixed "design" pixel sizes
+-- (640x460 window, 480x340 / 820x620 resize bounds) tuned for a 1920x1080 screen.
+-- Resolution independence is achieved with a single UIScale (added below) that
+-- multiplies the whole UI -- window, rows AND text -- by the player's screen height
+-- relative to that 1080p reference, so it looks proportional on phones and 4K alike.
+local DESIGN_HEIGHT = 1080
+
 local Library = UI.new({
     Title = "discord.gg/hS7xx7pFBs",
-    Size = UDim2.new(0, 640, 0, 460),
+    Size = UDim2.fromOffset(640, 460),
     Position = UDim2.new(0, 100, 0, 100),
     GuiName = "discord.gg/hS7xx7pFBs",
     ConfigFile = "PixelQuestUI.json",
@@ -34,9 +41,65 @@ local Library = UI.new({
     AutoSave = true,
     AutoLoad = true,
     KeyCode = Enum.KeyCode.RightShift,
+    -- design-space bounds; the UIScale scales the rendered size on top of these
     MinSize = Vector2.new(480, 340),
     MaxSize = Vector2.new(820, 620)
 })
+
+-- Scale the entire UI by the player's screen height vs the 1080p design reference.
+-- Clamped so it never gets unusably tiny on small phones or absurdly huge on 4K.
+local function computeUiScale()
+    local camera = workspace.CurrentCamera
+    local height = (camera and camera.ViewportSize.Y > 1) and camera.ViewportSize.Y or DESIGN_HEIGHT
+    return math.clamp(height / DESIGN_HEIGHT, 0.7, 1.6)
+end
+
+local UiScale = Instance.new("UIScale")
+UiScale.Scale = computeUiScale()
+UiScale.Parent = Library.MainFrame
+
+-- The library's resize handler reads MainFrame.AbsoluteSize (already multiplied by
+-- UiScale) and feeds it straight back into SetSize, which would compound the scale
+-- on every drag. Divide the incoming pixel sizes by the current scale so a drag of
+-- N screen pixels still resizes the window by N screen pixels. UDim2/Vector2 calls
+-- (used at init) are passed through untouched.
+local rawSetSize = Library.SetSize
+function Library:SetSize(width, height)
+    local scale = UiScale.Scale
+    if type(width) == "number" and type(height) == "number" and scale > 0 then
+        width = width / scale
+        height = height / scale
+    end
+    return rawSetSize(self, width, height)
+end
+
+-- keep the scale in sync if the Roblox window is resized or the device is rotated.
+-- the library has no cleanup hook, so track connections and drop them on Destroy.
+local scaleConnections = {}
+
+local function watchViewport()
+    local camera = workspace.CurrentCamera
+    if camera then
+        table.insert(scaleConnections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+            UiScale.Scale = computeUiScale()
+        end))
+    end
+end
+
+table.insert(scaleConnections, workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    UiScale.Scale = computeUiScale()
+    watchViewport()
+end))
+watchViewport()
+
+local rawDestroy = Library.Destroy
+function Library:Destroy()
+    for _, connection in ipairs(scaleConnections) do
+        connection:Disconnect()
+    end
+    table.clear(scaleConnections)
+    return rawDestroy(self)
+end
 
 local ResizeCornerMark = Library.ResizeHandle and Library.ResizeHandle:FindFirstChild("CornerMark")
 if ResizeCornerMark then
@@ -416,6 +479,8 @@ AutoTab:Label({ Text = "Loot" })
 local AutoLootMinValor
 local AutoLootPickupScrolls
 local AutoLootPickupSouls
+local AutoLootPickupInfusions
+local AutoLootPickupCorruptedPages
 local AutoLootCooldownTimeout
 local AutoLootTierDropdown
 
@@ -427,6 +492,8 @@ local AutoLootToggle = AutoTab:Toggle({
         PQ.AutoLoot:SetMinValor(tonumber(AutoLootMinValor and AutoLootMinValor:GetValue()) or 0)
         PQ.AutoLoot:SetPickupScrolls(AutoLootPickupScrolls and AutoLootPickupScrolls:GetValue() or false)
         PQ.AutoLoot:SetPickupSouls(AutoLootPickupSouls and AutoLootPickupSouls:GetValue() or false)
+        PQ.AutoLoot:SetPickupInfusions(AutoLootPickupInfusions and AutoLootPickupInfusions:GetValue() or false)
+        PQ.AutoLoot:SetPickupCorruptedPages(AutoLootPickupCorruptedPages and AutoLootPickupCorruptedPages:GetValue() or false)
         PQ.AutoLoot:SetCooldownTimeout(tonumber(AutoLootCooldownTimeout and AutoLootCooldownTimeout:GetValue()) or 1)
         ApplyTierSelection(AutoLootTiers, AutoLootTierDropdown and AutoLootTierDropdown:GetValue(), function(tierName, enabled)
             PQ.AutoLoot:SetLootTierEnabled(tierName, enabled)
@@ -460,6 +527,24 @@ AutoLootPickupSouls = AutoTab:Toggle({
     Default = false,
     Callback = function(value)
         PQ.AutoLoot:SetPickupSouls(value)
+    end
+})
+
+AutoLootPickupInfusions = AutoTab:Toggle({
+    Text = "Pickup Infusions",
+    Flag = "AutoLootPickupInfusions",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoLoot:SetPickupInfusions(value)
+    end
+})
+
+AutoLootPickupCorruptedPages = AutoTab:Toggle({
+    Text = "Pickup Corrupted Pages",
+    Flag = "AutoLootPickupCorruptedPages",
+    Default = true,
+    Callback = function(value)
+        PQ.AutoLoot:SetPickupCorruptedPages(value)
     end
 })
 
@@ -1034,7 +1119,9 @@ SetElementOrder(AutoLootToggle, 410)
 SetElementOrder(AutoLootMinValor, 420)
 SetElementOrder(AutoLootPickupScrolls, 430)
 SetElementOrder(AutoLootPickupSouls, 435)
-SetElementOrder(AutoLootCooldownTimeout, 437)
+SetElementOrder(AutoLootPickupInfusions, 436)
+SetElementOrder(AutoLootPickupCorruptedPages, 437)
+SetElementOrder(AutoLootCooldownTimeout, 438)
 SetElementOrder(AutoLootTierDropdown, 440)
 
 SetLabelOrder(AutoTab, "Sell", 500)
