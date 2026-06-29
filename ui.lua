@@ -112,6 +112,25 @@ local PlayerTab = Library:CreateTab({ Name = "Player" })
 local KeybindTab = Library:CreateTab({ Name = "Keybinds" })
 local ConfigTab = Library:CreateTab({ Name = "Config" })
 
+-- The library sizes each tab's scroll canvas from layout.AbsoluteContentSize (the
+-- already-scaled height) but writes it into CanvasSize.Offset, which the UIScale
+-- then multiplies again -- so the canvas ends up height*scale^2. On mobile (scale
+-- < 1) that makes it too short and you can't scroll to the bottom. Patch the shared
+-- Tab method to convert the content height back to design units before assigning,
+-- so the canvas matches the content at any scale. Tab.__index == Tab, so overriding
+-- it on the metatable fixes every tab at once.
+local TabClass = getmetatable(CombatTab)
+function TabClass:_RefreshCanvas()
+    if self.content and self.layout then
+        local scale = UiScale.Scale
+        local contentHeight = self.layout.AbsoluteContentSize.Y
+        if scale > 0 then
+            contentHeight = contentHeight / scale
+        end
+        self.content.CanvasSize = UDim2.new(0, 0, 0, contentHeight + 20)
+    end
+end
+
 CombatTab:Label({ Text = "Ability" })
 
 local AutoAbilityHealthThreshold
