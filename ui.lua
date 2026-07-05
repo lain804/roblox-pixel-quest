@@ -112,6 +112,8 @@ local PlayerTab = Library:CreateTab({ Name = "Player" })
 local KeybindTab = Library:CreateTab({ Name = "Keybinds" })
 local ConfigTab = Library:CreateTab({ Name = "Config" })
 
+PQ.FixPlayerShootTime:Toggle(true)
+
 -- The library sizes each tab's scroll canvas from layout.AbsoluteContentSize (the
 -- already-scaled height) but writes it into CanvasSize.Offset, which the UIScale
 -- then multiplies again -- so the canvas ends up height*scale^2. On mobile (scale
@@ -386,6 +388,77 @@ KillAuraHitTrainingDummies = CombatTab:Toggle({
 })
 
 CombatTab:Separator({ Text = "" })
+CombatTab:Label({ Text = "Fire Rate" })
+
+local BoostRateOfFireMultiplierBox
+local FixPlayerShootTimeJuiceMeter
+local ShowFixPlayerShootTimeJuiceToggle
+
+local BoostRateOfFireToggle = CombatTab:Toggle({
+    Text = "Boost Rate Of Fire",
+    Flag = "BoostRateOfFire",
+    Default = false,
+    Callback = function(value)
+        PQ.BoostRateOfFire:SetMulti(tonumber(BoostRateOfFireMultiplierBox and BoostRateOfFireMultiplierBox:GetValue()) or 1)
+        PQ.BoostRateOfFire:Toggle(value)
+    end
+})
+
+BoostRateOfFireMultiplierBox = CombatTab:Textbox({
+    Text = "Rate Of Fire Multiplier",
+    Flag = "BoostRateOfFireMultiplier",
+    Placeholder = "1",
+    Default = "1",
+    Callback = function(value)
+        PQ.BoostRateOfFire:SetMulti(tonumber(value) or 1)
+    end
+})
+
+ShowFixPlayerShootTimeJuiceToggle = CombatTab:Toggle({
+    Text = "Show Shoot Time Juice",
+    Flag = "ShowFixPlayerShootTimeJuice",
+    Default = true,
+    Callback = function(value)
+        if not FixPlayerShootTimeJuiceMeter then
+            return
+        end
+
+        if value then
+            FixPlayerShootTimeJuiceMeter:Show()
+        else
+            FixPlayerShootTimeJuiceMeter:Hide()
+        end
+    end
+})
+
+FixPlayerShootTimeJuiceMeter = CombatTab:Meter({
+    Text = "Shoot Time Juice",
+    Min = 0,
+    Max = 1,
+    Default = 1,
+    Color = Color3.fromRGB(92, 218, 132),
+    LowColor = Color3.fromRGB(255, 96, 96),
+    Format = function(value)
+        return string.format("%d%%", math.floor(value * 100 + 0.5))
+    end
+})
+
+if not ShowFixPlayerShootTimeJuiceToggle:GetValue() then
+    FixPlayerShootTimeJuiceMeter:Hide()
+end
+
+task.spawn(function()
+    while Library.MainFrame and Library.MainFrame.Parent do
+        local maxOffset = PQ.FixPlayerShootTime.MAX_PLAYER_SHOOT_TIME_OFFSET
+        local offset = math.clamp((PQ.FixPlayerShootTime.lastAdjustedTime or 0) - os.clock(), 0, maxOffset)
+        local juice = maxOffset > 0 and math.clamp(1 - (offset / maxOffset), 0, 1) or 1
+
+        FixPlayerShootTimeJuiceMeter:SetValue(juice)
+        task.wait(0.1)
+    end
+end)
+
+CombatTab:Separator({ Text = "" })
 CombatTab:Label({ Text = "Projectiles" })
 
 local ForceLinearBulletPatternToggle = CombatTab:Toggle({
@@ -496,12 +569,32 @@ AutoTab:Separator({ Text = "" })
 AutoTab:Label({ Text = "Loot" })
 
 local AutoLootMinValor
-local AutoLootPickupScrolls
-local AutoLootPickupSouls
-local AutoLootPickupInfusions
-local AutoLootPickupCorruptedPages
+local AutoLootPickupCategoriesDropdown
 local AutoLootCooldownTimeout
 local AutoLootTierDropdown
+
+local AutoLootPickupCategories = {
+    "Pickup Items",
+    "Pickup Scrolls",
+    "Pickup Souls",
+    "Pickup Infusions",
+    "Pickup Corrupted Pages",
+    "Pickup Chests"
+}
+
+local function ApplyAutoLootPickupSelection(selected)
+    local selectedSet = {}
+    for _, categoryName in selected or {} do
+        selectedSet[categoryName] = true
+    end
+
+    PQ.AutoLoot:SetPickupItems(selectedSet["Pickup Items"] == true)
+    PQ.AutoLoot:SetPickupScrolls(selectedSet["Pickup Scrolls"] == true)
+    PQ.AutoLoot:SetPickupSouls(selectedSet["Pickup Souls"] == true)
+    PQ.AutoLoot:SetPickupInfusions(selectedSet["Pickup Infusions"] == true)
+    PQ.AutoLoot:SetPickupCorruptedPages(selectedSet["Pickup Corrupted Pages"] == true)
+    PQ.AutoLoot:SetPickupChests(selectedSet["Pickup Chests"] == true)
+end
 
 local AutoLootToggle = AutoTab:Toggle({
     Text = "Auto Loot",
@@ -509,10 +602,7 @@ local AutoLootToggle = AutoTab:Toggle({
     Default = false,
     Callback = function(value)
         PQ.AutoLoot:SetMinValor(tonumber(AutoLootMinValor and AutoLootMinValor:GetValue()) or 0)
-        PQ.AutoLoot:SetPickupScrolls(AutoLootPickupScrolls and AutoLootPickupScrolls:GetValue() or false)
-        PQ.AutoLoot:SetPickupSouls(AutoLootPickupSouls and AutoLootPickupSouls:GetValue() or false)
-        PQ.AutoLoot:SetPickupInfusions(AutoLootPickupInfusions and AutoLootPickupInfusions:GetValue() or false)
-        PQ.AutoLoot:SetPickupCorruptedPages(AutoLootPickupCorruptedPages and AutoLootPickupCorruptedPages:GetValue() or false)
+        ApplyAutoLootPickupSelection(AutoLootPickupCategoriesDropdown and AutoLootPickupCategoriesDropdown:GetValue())
         PQ.AutoLoot:SetCooldownTimeout(tonumber(AutoLootCooldownTimeout and AutoLootCooldownTimeout:GetValue()) or 1)
         ApplyTierSelection(AutoLootTiers, AutoLootTierDropdown and AutoLootTierDropdown:GetValue(), function(tierName, enabled)
             PQ.AutoLoot:SetLootTierEnabled(tierName, enabled)
@@ -531,39 +621,14 @@ AutoLootMinValor = AutoTab:Textbox({
     end
 })
 
-AutoLootPickupScrolls = AutoTab:Toggle({
-    Text = "Pickup Scrolls",
-    Flag = "AutoLootPickupScrolls",
-    Default = true,
+AutoLootPickupCategoriesDropdown = AutoTab:Dropdown({
+    Text = "Pickup Categories",
+    Flag = "AutoLootPickupCategories",
+    Multi = true,
+    Options = AutoLootPickupCategories,
+    Default = { "Pickup Items", "Pickup Scrolls", "Pickup Corrupted Pages", "Pickup Chests" },
     Callback = function(value)
-        PQ.AutoLoot:SetPickupScrolls(value)
-    end
-})
-
-AutoLootPickupSouls = AutoTab:Toggle({
-    Text = "Pickup Souls",
-    Flag = "AutoLootPickupSouls",
-    Default = false,
-    Callback = function(value)
-        PQ.AutoLoot:SetPickupSouls(value)
-    end
-})
-
-AutoLootPickupInfusions = AutoTab:Toggle({
-    Text = "Pickup Infusions",
-    Flag = "AutoLootPickupInfusions",
-    Default = false,
-    Callback = function(value)
-        PQ.AutoLoot:SetPickupInfusions(value)
-    end
-})
-
-AutoLootPickupCorruptedPages = AutoTab:Toggle({
-    Text = "Pickup Corrupted Pages",
-    Flag = "AutoLootPickupCorruptedPages",
-    Default = true,
-    Callback = function(value)
-        PQ.AutoLoot:SetPickupCorruptedPages(value)
+        ApplyAutoLootPickupSelection(value)
     end
 })
 
@@ -797,6 +862,31 @@ AntiStaffModeDropdown = PlayerTab:Dropdown({
     end
 })
 
+local HotkeyQuestTPModeDropdown
+
+HotkeyQuestTPModeDropdown = PlayerTab:Dropdown({
+    Text = "Quest Teleport Mode",
+    Flag = "HotkeyQuestTPMode",
+    Options = { "World Boss Only", "Any Boss" },
+    Default = "World Boss Only",
+    Callback = function(value)
+        if value == "Any Boss" then
+            PQ.HotkeyQuestTP.mode = 1
+        else
+            PQ.HotkeyQuestTP.mode = 2
+        end
+    end
+})
+
+local FasterSwapTimeoutToggle = PlayerTab:Toggle({
+    Text = "Faster Swap Timeout",
+    Flag = "FasterSwapTimeout",
+    Default = false,
+    Callback = function(value)
+        PQ.FasterSwapTimeout:Toggle(value)
+    end
+})
+
 local SkinName
 
 local SkinChangerToggle = PlayerTab:Toggle({
@@ -857,6 +947,14 @@ KeybindTab:Keybind({
     Flag = "AutoAbilityKey",
     Callback = function()
         ToggleFromKeybind(AutoAbilityToggle, "Auto Ability")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Boost Rate Of Fire",
+    Flag = "BoostRateOfFireKey",
+    Callback = function()
+        ToggleFromKeybind(BoostRateOfFireToggle, "Boost Rate Of Fire")
     end
 })
 
@@ -1046,6 +1144,15 @@ KeybindTab:Keybind({
     end
 })
 
+KeybindTab:Keybind({
+    Text = "Quest Teleport",
+    Flag = "HotkeyQuestTPKey",
+    Callback = function()
+        PQ.HotkeyQuestTP:TeleportToClosestBoss()
+        PQ.DisplayStatusText("Quest Teleport")
+    end
+})
+
 KeybindTab:Separator({ Text = "" })
 KeybindTab:Label({ Text = "Automation" })
 KeybindTab:Separator({ Text = "" })
@@ -1100,28 +1207,34 @@ SetElementOrder(KillAuraInvulnerable, 160)
 SetElementOrder(KillAuraOffscreen, 170)
 SetElementOrder(KillAuraHitTrainingDummies, 180)
 
-SetLabelOrder(CombatTab, "Auto Target", 200)
-SetElementOrder(AutoTargetToggle, 210)
-SetElementOrder(AutoTargetTileRadius, 220)
-SetElementOrder(AutoTargetSpoofAbility, 230)
-SetElementOrder(AutoTargetSpoofPrimary, 240)
-SetElementOrder(AutoTargetInvulnerable, 250)
-SetElementOrder(AutoTargetOffscreen, 260)
+SetLabelOrder(CombatTab, "Fire Rate", 200)
+SetElementOrder(BoostRateOfFireToggle, 210)
+SetElementOrder(BoostRateOfFireMultiplierBox, 220)
+SetElementOrder(ShowFixPlayerShootTimeJuiceToggle, 230)
+SetElementOrder(FixPlayerShootTimeJuiceMeter, 240)
 
-SetLabelOrder(CombatTab, "Ability", 300)
-SetElementOrder(AutoAbilityToggle, 310)
-SetElementOrder(AutoAbilityHealthThreshold, 320)
-SetElementOrder(AutoAbilityManaThreshold, 330)
-SetElementOrder(AutoAbilityUseOnTrainingDummies, 340)
-SetElementOrder(AutoAbilityUseOnBossesOnly, 350)
-SetElementOrder(AutoAbilityRequireEnemyNear, 360)
-SetElementOrder(AutoAbilityTargetInvulnerable, 370)
+SetLabelOrder(CombatTab, "Auto Target", 300)
+SetElementOrder(AutoTargetToggle, 310)
+SetElementOrder(AutoTargetTileRadius, 320)
+SetElementOrder(AutoTargetSpoofAbility, 330)
+SetElementOrder(AutoTargetSpoofPrimary, 340)
+SetElementOrder(AutoTargetInvulnerable, 350)
+SetElementOrder(AutoTargetOffscreen, 360)
 
-SetLabelOrder(CombatTab, "Projectiles", 400)
-SetElementOrder(ForceLinearBulletPatternToggle, 420)
-SetElementOrder(RemoveBulletSpreadToggle, 430)
-SetElementOrder(BulletsPenetrateTerrainToggle, 440)
-SetSeparatorOrders(CombatTab, { 190, 290, 390 })
+SetLabelOrder(CombatTab, "Ability", 400)
+SetElementOrder(AutoAbilityToggle, 410)
+SetElementOrder(AutoAbilityHealthThreshold, 420)
+SetElementOrder(AutoAbilityManaThreshold, 430)
+SetElementOrder(AutoAbilityUseOnTrainingDummies, 440)
+SetElementOrder(AutoAbilityUseOnBossesOnly, 450)
+SetElementOrder(AutoAbilityRequireEnemyNear, 460)
+SetElementOrder(AutoAbilityTargetInvulnerable, 470)
+
+SetLabelOrder(CombatTab, "Projectiles", 500)
+SetElementOrder(ForceLinearBulletPatternToggle, 510)
+SetElementOrder(RemoveBulletSpreadToggle, 520)
+SetElementOrder(BulletsPenetrateTerrainToggle, 530)
+SetSeparatorOrders(CombatTab, { 190, 290, 390, 490 })
 
 SetLabelOrder(AutoTab, "Collection", 100)
 SetElementOrder(AutoExpToggle, 110)
@@ -1136,12 +1249,9 @@ SetElementOrder(AutoClaimDailyRewardsToggle, 330)
 SetLabelOrder(AutoTab, "Loot", 400)
 SetElementOrder(AutoLootToggle, 410)
 SetElementOrder(AutoLootMinValor, 420)
-SetElementOrder(AutoLootPickupScrolls, 430)
-SetElementOrder(AutoLootPickupSouls, 435)
-SetElementOrder(AutoLootPickupInfusions, 436)
-SetElementOrder(AutoLootPickupCorruptedPages, 437)
-SetElementOrder(AutoLootCooldownTimeout, 438)
-SetElementOrder(AutoLootTierDropdown, 440)
+SetElementOrder(AutoLootPickupCategoriesDropdown, 430)
+SetElementOrder(AutoLootCooldownTimeout, 440)
+SetElementOrder(AutoLootTierDropdown, 450)
 
 SetLabelOrder(AutoTab, "Sell", 500)
 SetElementOrder(AutoSellToggle, 510)
@@ -1177,13 +1287,16 @@ SetLabelOrder(PlayerTab, "Misc", 400)
 SetElementOrder(AntiAfkToggle, 410)
 SetElementOrder(AntiStaffToggle, 420)
 SetElementOrder(AntiStaffModeDropdown, 430)
+SetElementOrder(HotkeyQuestTPModeDropdown, 440)
+SetElementOrder(FasterSwapTimeoutToggle, 450)
 
 SetSeparatorOrders(PlayerTab, { 190, 290, 390 })
 
 SetLabelOrder(KeybindTab, "Combat", 100)
 SetControlOrderByText(KeybindTab, "Kill Aura", 110)
-SetControlOrderByText(KeybindTab, "Auto Target", 120)
-SetControlOrderByText(KeybindTab, "Auto Ability", 130)
+SetControlOrderByText(KeybindTab, "Boost Rate Of Fire", 120)
+SetControlOrderByText(KeybindTab, "Auto Target", 130)
+SetControlOrderByText(KeybindTab, "Auto Ability", 140)
 SetControlOrderByText(KeybindTab, "Force Linear Bullet Pattern", 150)
 SetControlOrderByText(KeybindTab, "Remove Bullet Spread", 160)
 SetControlOrderByText(KeybindTab, "Bullets Penetrate Terrain", 170)
@@ -1205,10 +1318,11 @@ SetControlOrderByText(KeybindTab, "Skin Changer", 330)
 SetControlOrderByText(KeybindTab, "Anti Staff", 340)
 SetControlOrderByText(KeybindTab, "No Replication Delay", 410)
 SetControlOrderByText(KeybindTab, "Debuff Immunity", 420)
-SetControlOrderByText(KeybindTab, "Boost Movement Speed", 430)
-SetControlOrderByText(KeybindTab, "Anti AFK", 440)
-SetControlOrderByText(KeybindTab, "Hide Own Projectiles", 450)
-SetControlOrderByText(KeybindTab, "Force Show All Side Buttons", 460)
+SetControlOrderByText(KeybindTab, "Quest Teleport", 430)
+SetControlOrderByText(KeybindTab, "Boost Movement Speed", 440)
+SetControlOrderByText(KeybindTab, "Anti AFK", 450)
+SetControlOrderByText(KeybindTab, "Hide Own Projectiles", 460)
+SetControlOrderByText(KeybindTab, "Force Show All Side Buttons", 470)
 SetSeparatorOrders(KeybindTab, { 190, 290 })
 
 CombatTab:_RefreshCanvas()
@@ -1319,7 +1433,7 @@ end
 
 BackgroundImageBox = ConfigTab:Textbox({
     Text = "Background ID",
-    Placeholder = "rbxassetid:// or penar.png",
+    Placeholder = "rbxassetid://id or workspace file names",
     Flag = "BackgroundImageId",
     Default = "",
     Callback = function()
