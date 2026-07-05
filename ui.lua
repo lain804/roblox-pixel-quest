@@ -390,29 +390,29 @@ KillAuraHitTrainingDummies = CombatTab:Toggle({
 CombatTab:Separator({ Text = "" })
 CombatTab:Label({ Text = "Fire Rate" })
 
-local BoostRateOfFireMultiplierBox
+-- local BoostRateOfFireMultiplierBox
 local FixPlayerShootTimeJuiceMeter
 local ShowFixPlayerShootTimeJuiceToggle
 
-local BoostRateOfFireToggle = CombatTab:Toggle({
-    Text = "Boost Rate Of Fire",
-    Flag = "BoostRateOfFire",
-    Default = false,
-    Callback = function(value)
-        PQ.BoostRateOfFire:SetMulti(tonumber(BoostRateOfFireMultiplierBox and BoostRateOfFireMultiplierBox:GetValue()) or 1)
-        PQ.BoostRateOfFire:Toggle(value)
-    end
-})
+-- local BoostRateOfFireToggle = CombatTab:Toggle({
+--     Text = "Boost Rate Of Fire",
+--     Flag = "BoostRateOfFire",
+--     Default = false,
+--     Callback = function(value)
+--         PQ.BoostRateOfFire:SetMulti(tonumber(BoostRateOfFireMultiplierBox and BoostRateOfFireMultiplierBox:GetValue()) or 1)
+--         PQ.BoostRateOfFire:Toggle(value)
+--     end
+-- })
 
-BoostRateOfFireMultiplierBox = CombatTab:Textbox({
-    Text = "Rate Of Fire Multiplier",
-    Flag = "BoostRateOfFireMultiplier",
-    Placeholder = "1",
-    Default = "1",
-    Callback = function(value)
-        PQ.BoostRateOfFire:SetMulti(tonumber(value) or 1)
-    end
-})
+-- BoostRateOfFireMultiplierBox = CombatTab:Textbox({
+--     Text = "Rate Of Fire Multiplier",
+--     Flag = "BoostRateOfFireMultiplier",
+--     Placeholder = "1",
+--     Default = "1",
+--     Callback = function(value)
+--         PQ.BoostRateOfFire:SetMulti(tonumber(value) or 1)
+--     end
+-- })
 
 ShowFixPlayerShootTimeJuiceToggle = CombatTab:Toggle({
     Text = "Show Shoot Time Juice",
@@ -950,13 +950,13 @@ KeybindTab:Keybind({
     end
 })
 
-KeybindTab:Keybind({
-    Text = "Boost Rate Of Fire",
-    Flag = "BoostRateOfFireKey",
-    Callback = function()
-        ToggleFromKeybind(BoostRateOfFireToggle, "Boost Rate Of Fire")
-    end
-})
+-- KeybindTab:Keybind({
+--     Text = "Boost Rate Of Fire",
+--     Flag = "BoostRateOfFireKey",
+--     Callback = function()
+--         ToggleFromKeybind(BoostRateOfFireToggle, "Boost Rate Of Fire")
+--     end
+-- })
 
 KeybindTab:Keybind({
     Text = "Auto Target",
@@ -1208,8 +1208,8 @@ SetElementOrder(KillAuraOffscreen, 170)
 SetElementOrder(KillAuraHitTrainingDummies, 180)
 
 SetLabelOrder(CombatTab, "Fire Rate", 200)
-SetElementOrder(BoostRateOfFireToggle, 210)
-SetElementOrder(BoostRateOfFireMultiplierBox, 220)
+-- SetElementOrder(BoostRateOfFireToggle, 210)
+-- SetElementOrder(BoostRateOfFireMultiplierBox, 220)
 SetElementOrder(ShowFixPlayerShootTimeJuiceToggle, 230)
 SetElementOrder(FixPlayerShootTimeJuiceMeter, 240)
 
@@ -1294,7 +1294,7 @@ SetSeparatorOrders(PlayerTab, { 190, 290, 390 })
 
 SetLabelOrder(KeybindTab, "Combat", 100)
 SetControlOrderByText(KeybindTab, "Kill Aura", 110)
-SetControlOrderByText(KeybindTab, "Boost Rate Of Fire", 120)
+-- SetControlOrderByText(KeybindTab, "Boost Rate Of Fire", 120)
 SetControlOrderByText(KeybindTab, "Auto Target", 130)
 SetControlOrderByText(KeybindTab, "Auto Ability", 140)
 SetControlOrderByText(KeybindTab, "Force Linear Bullet Pattern", 150)
