@@ -137,10 +137,30 @@ CombatTab:Label({ Text = "Ability" })
 
 local AutoAbilityHealthThreshold
 local AutoAbilityManaThreshold
+local AutoAbilityDelay
 local AutoAbilityUseOnTrainingDummies
 local AutoAbilityUseOnBossesOnly
 local AutoAbilityRequireEnemyNear
 local AutoAbilityTargetInvulnerable
+local AutoAbilityPerformDanceSequence
+local AutoAbilityMoveSequenceDropdown
+
+PQ.AutoAbility:Init()
+
+local function GetAutoAbilityMoveSequences()
+    local sequences = {}
+
+    for sequenceName in PQ.AutoAbility.moveAbilitySequences do
+        table.insert(sequences, sequenceName)
+    end
+
+    table.sort(sequences)
+
+    return sequences
+end
+
+local AutoAbilityMoveSequences = GetAutoAbilityMoveSequences()
+local AutoAbilityDefaultMoveSequence = AutoAbilityMoveSequences[1]
 
 local AutoAbilityToggle = CombatTab:Toggle({
     Text = "Auto Ability",
@@ -152,10 +172,13 @@ local AutoAbilityToggle = CombatTab:Toggle({
 
         PQ.AutoAbility:SetHealthThresholdPercentage(healthThreshold > 0 and healthThreshold or nil)
         PQ.AutoAbility:SetManaThresholdPercentage(manaThreshold > 0 and manaThreshold or nil)
+        PQ.AutoAbility:SetAbilityDelay(AutoAbilityDelay and AutoAbilityDelay:GetValue() or 0)
         PQ.AutoAbility:SetUseOnTrainingDummies(AutoAbilityUseOnTrainingDummies and AutoAbilityUseOnTrainingDummies:GetValue() or false)
         PQ.AutoAbility:SetUseAbilityOnBossesOnly(AutoAbilityUseOnBossesOnly and AutoAbilityUseOnBossesOnly:GetValue() or false)
         PQ.AutoAbility:SetRequireEnemyNear(AutoAbilityRequireEnemyNear and AutoAbilityRequireEnemyNear:GetValue() or false)
         PQ.AutoAbility:SetTargetInvulnerable(AutoAbilityTargetInvulnerable and AutoAbilityTargetInvulnerable:GetValue() or false)
+        PQ.AutoAbility:SetPerformKeystrokeSequenceAfterAbility(AutoAbilityPerformDanceSequence and AutoAbilityPerformDanceSequence:GetValue() or false)
+        PQ.AutoAbility:SetSelectedSequence(AutoAbilityMoveSequenceDropdown and AutoAbilityMoveSequenceDropdown:GetValue() or AutoAbilityDefaultMoveSequence)
         PQ.AutoAbility:Toggle(value)
     end
 })
@@ -181,6 +204,18 @@ AutoAbilityManaThreshold = CombatTab:Slider({
     Increment = 1,
     Callback = function(value)
         PQ.AutoAbility:SetManaThresholdPercentage(value > 0 and value or nil)
+    end
+})
+
+AutoAbilityDelay = CombatTab:Slider({
+    Text = "Ability Delay",
+    Flag = "AutoAbilityDelay",
+    Min = 0,
+    Max = 1,
+    Default = 0,
+    Increment = 0.001,
+    Callback = function(value)
+        PQ.AutoAbility:SetAbilityDelay(value)
     end
 })
 
@@ -219,6 +254,27 @@ AutoAbilityTargetInvulnerable = CombatTab:Toggle({
         PQ.AutoAbility:SetTargetInvulnerable(value)
     end
 })
+
+AutoAbilityPerformDanceSequence = CombatTab:Toggle({
+    Text = "Perform Dance Sequence",
+    Flag = "AutoAbilityPerformDanceSequence",
+    Default = false,
+    Callback = function(value)
+        PQ.AutoAbility:SetPerformKeystrokeSequenceAfterAbility(value)
+    end
+})
+
+AutoAbilityMoveSequenceDropdown = CombatTab:Dropdown({
+    Text = "Move Ability Sequence",
+    Flag = "AutoAbilityMoveSequence",
+    Options = AutoAbilityMoveSequences,
+    Default = AutoAbilityDefaultMoveSequence,
+    Callback = function(value)
+        PQ.AutoAbility:SetSelectedSequence(value)
+    end
+})
+
+PQ.AutoAbility:SetSelectedSequence(AutoAbilityDefaultMoveSequence)
 
 CombatTab:Separator({ Text = "" })
 CombatTab:Label({ Text = "Auto Target" })
@@ -386,77 +442,6 @@ KillAuraHitTrainingDummies = CombatTab:Toggle({
         PQ.KillAura:SetHitTrainingDummies(value)
     end
 })
-
-CombatTab:Separator({ Text = "" })
-CombatTab:Label({ Text = "Fire Rate" })
-
--- local BoostRateOfFireMultiplierBox
-local FixPlayerShootTimeJuiceMeter
-local ShowFixPlayerShootTimeJuiceToggle
-
--- local BoostRateOfFireToggle = CombatTab:Toggle({
---     Text = "Boost Rate Of Fire",
---     Flag = "BoostRateOfFire",
---     Default = false,
---     Callback = function(value)
---         PQ.BoostRateOfFire:SetMulti(tonumber(BoostRateOfFireMultiplierBox and BoostRateOfFireMultiplierBox:GetValue()) or 1)
---         PQ.BoostRateOfFire:Toggle(value)
---     end
--- })
-
--- BoostRateOfFireMultiplierBox = CombatTab:Textbox({
---     Text = "Rate Of Fire Multiplier",
---     Flag = "BoostRateOfFireMultiplier",
---     Placeholder = "1",
---     Default = "1",
---     Callback = function(value)
---         PQ.BoostRateOfFire:SetMulti(tonumber(value) or 1)
---     end
--- })
-
-ShowFixPlayerShootTimeJuiceToggle = CombatTab:Toggle({
-    Text = "Show Shoot Time Juice",
-    Flag = "ShowFixPlayerShootTimeJuice",
-    Default = true,
-    Callback = function(value)
-        if not FixPlayerShootTimeJuiceMeter then
-            return
-        end
-
-        if value then
-            FixPlayerShootTimeJuiceMeter:Show()
-        else
-            FixPlayerShootTimeJuiceMeter:Hide()
-        end
-    end
-})
-
-FixPlayerShootTimeJuiceMeter = CombatTab:Meter({
-    Text = "Shoot Time Juice",
-    Min = 0,
-    Max = 1,
-    Default = 1,
-    Color = Color3.fromRGB(92, 218, 132),
-    LowColor = Color3.fromRGB(255, 96, 96),
-    Format = function(value)
-        return string.format("%d%%", math.floor(value * 100 + 0.5))
-    end
-})
-
-if not ShowFixPlayerShootTimeJuiceToggle:GetValue() then
-    FixPlayerShootTimeJuiceMeter:Hide()
-end
-
-task.spawn(function()
-    while Library.MainFrame and Library.MainFrame.Parent do
-        local maxOffset = PQ.FixPlayerShootTime.MAX_PLAYER_SHOOT_TIME_OFFSET
-        local offset = math.clamp((PQ.FixPlayerShootTime.lastAdjustedTime or 0) - os.clock(), 0, maxOffset)
-        local juice = maxOffset > 0 and math.clamp(1 - (offset / maxOffset), 0, 1) or 1
-
-        FixPlayerShootTimeJuiceMeter:SetValue(juice)
-        task.wait(0.1)
-    end
-end)
 
 CombatTab:Separator({ Text = "" })
 CombatTab:Label({ Text = "Projectiles" })
@@ -862,31 +847,6 @@ AntiStaffModeDropdown = PlayerTab:Dropdown({
     end
 })
 
-local HotkeyQuestTPModeDropdown
-
-HotkeyQuestTPModeDropdown = PlayerTab:Dropdown({
-    Text = "Quest Teleport Mode",
-    Flag = "HotkeyQuestTPMode",
-    Options = { "World Boss Only", "Any Boss" },
-    Default = "World Boss Only",
-    Callback = function(value)
-        if value == "Any Boss" then
-            PQ.HotkeyQuestTP.mode = 1
-        else
-            PQ.HotkeyQuestTP.mode = 2
-        end
-    end
-})
-
-local FasterSwapTimeoutToggle = PlayerTab:Toggle({
-    Text = "Faster Swap Timeout",
-    Flag = "FasterSwapTimeout",
-    Default = false,
-    Callback = function(value)
-        PQ.FasterSwapTimeout:Toggle(value)
-    end
-})
-
 local SkinName
 
 local SkinChangerToggle = PlayerTab:Toggle({
@@ -940,6 +900,18 @@ local function ToggleFromKeybind(toggle, moduleName)
     end
 end
 
+local function SetKillAuraModeFromKeybind(modeName)
+    if KillAuraModeDropdown then
+        KillAuraModeDropdown:SetValue(modeName)
+    else
+        PQ.KillAura:SetMode(KillAuraMode[modeName])
+    end
+
+    if not KeybindStatusMessagesToggle or KeybindStatusMessagesToggle:GetValue() then
+        PQ.DisplayStatusText("Kill Aura Mode: " .. modeName)
+    end
+end
+
 KeybindTab:Label({ Text = "Combat" })
 
 KeybindTab:Keybind({
@@ -949,14 +921,6 @@ KeybindTab:Keybind({
         ToggleFromKeybind(AutoAbilityToggle, "Auto Ability")
     end
 })
-
--- KeybindTab:Keybind({
---     Text = "Boost Rate Of Fire",
---     Flag = "BoostRateOfFireKey",
---     Callback = function()
---         ToggleFromKeybind(BoostRateOfFireToggle, "Boost Rate Of Fire")
---     end
--- })
 
 KeybindTab:Keybind({
     Text = "Auto Target",
@@ -971,6 +935,30 @@ KeybindTab:Keybind({
     Flag = "KillAuraKey",
     Callback = function()
         ToggleFromKeybind(KillAuraToggle, "Kill Aura")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Kill Aura Single Mode",
+    Flag = "KillAuraSingleModeKey",
+    Callback = function()
+        SetKillAuraModeFromKeybind("single")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Kill Aura Multi Mode",
+    Flag = "KillAuraMultiModeKey",
+    Callback = function()
+        SetKillAuraModeFromKeybind("multi")
+    end
+})
+
+KeybindTab:Keybind({
+    Text = "Kill Aura Adaptive Mode",
+    Flag = "KillAuraAdaptiveModeKey",
+    Callback = function()
+        SetKillAuraModeFromKeybind("adaptive")
     end
 })
 
@@ -1144,15 +1132,6 @@ KeybindTab:Keybind({
     end
 })
 
-KeybindTab:Keybind({
-    Text = "Quest Teleport",
-    Flag = "HotkeyQuestTPKey",
-    Callback = function()
-        PQ.HotkeyQuestTP:TeleportToClosestBoss()
-        PQ.DisplayStatusText("Quest Teleport")
-    end
-})
-
 KeybindTab:Separator({ Text = "" })
 KeybindTab:Label({ Text = "Automation" })
 KeybindTab:Separator({ Text = "" })
@@ -1207,12 +1186,6 @@ SetElementOrder(KillAuraInvulnerable, 160)
 SetElementOrder(KillAuraOffscreen, 170)
 SetElementOrder(KillAuraHitTrainingDummies, 180)
 
-SetLabelOrder(CombatTab, "Fire Rate", 200)
--- SetElementOrder(BoostRateOfFireToggle, 210)
--- SetElementOrder(BoostRateOfFireMultiplierBox, 220)
-SetElementOrder(ShowFixPlayerShootTimeJuiceToggle, 230)
-SetElementOrder(FixPlayerShootTimeJuiceMeter, 240)
-
 SetLabelOrder(CombatTab, "Auto Target", 300)
 SetElementOrder(AutoTargetToggle, 310)
 SetElementOrder(AutoTargetTileRadius, 320)
@@ -1225,16 +1198,19 @@ SetLabelOrder(CombatTab, "Ability", 400)
 SetElementOrder(AutoAbilityToggle, 410)
 SetElementOrder(AutoAbilityHealthThreshold, 420)
 SetElementOrder(AutoAbilityManaThreshold, 430)
-SetElementOrder(AutoAbilityUseOnTrainingDummies, 440)
-SetElementOrder(AutoAbilityUseOnBossesOnly, 450)
-SetElementOrder(AutoAbilityRequireEnemyNear, 460)
-SetElementOrder(AutoAbilityTargetInvulnerable, 470)
+SetElementOrder(AutoAbilityDelay, 440)
+SetElementOrder(AutoAbilityUseOnTrainingDummies, 450)
+SetElementOrder(AutoAbilityUseOnBossesOnly, 460)
+SetElementOrder(AutoAbilityRequireEnemyNear, 470)
+SetElementOrder(AutoAbilityTargetInvulnerable, 480)
+SetElementOrder(AutoAbilityPerformDanceSequence, 490)
+SetElementOrder(AutoAbilityMoveSequenceDropdown, 500)
 
-SetLabelOrder(CombatTab, "Projectiles", 500)
-SetElementOrder(ForceLinearBulletPatternToggle, 510)
-SetElementOrder(RemoveBulletSpreadToggle, 520)
-SetElementOrder(BulletsPenetrateTerrainToggle, 530)
-SetSeparatorOrders(CombatTab, { 190, 290, 390, 490 })
+SetLabelOrder(CombatTab, "Projectiles", 600)
+SetElementOrder(ForceLinearBulletPatternToggle, 610)
+SetElementOrder(RemoveBulletSpreadToggle, 620)
+SetElementOrder(BulletsPenetrateTerrainToggle, 630)
+SetSeparatorOrders(CombatTab, { 290, 390, 590 })
 
 SetLabelOrder(AutoTab, "Collection", 100)
 SetElementOrder(AutoExpToggle, 110)
@@ -1287,19 +1263,19 @@ SetLabelOrder(PlayerTab, "Misc", 400)
 SetElementOrder(AntiAfkToggle, 410)
 SetElementOrder(AntiStaffToggle, 420)
 SetElementOrder(AntiStaffModeDropdown, 430)
-SetElementOrder(HotkeyQuestTPModeDropdown, 440)
-SetElementOrder(FasterSwapTimeoutToggle, 450)
 
 SetSeparatorOrders(PlayerTab, { 190, 290, 390 })
 
 SetLabelOrder(KeybindTab, "Combat", 100)
 SetControlOrderByText(KeybindTab, "Kill Aura", 110)
--- SetControlOrderByText(KeybindTab, "Boost Rate Of Fire", 120)
-SetControlOrderByText(KeybindTab, "Auto Target", 130)
-SetControlOrderByText(KeybindTab, "Auto Ability", 140)
-SetControlOrderByText(KeybindTab, "Force Linear Bullet Pattern", 150)
-SetControlOrderByText(KeybindTab, "Remove Bullet Spread", 160)
-SetControlOrderByText(KeybindTab, "Bullets Penetrate Terrain", 170)
+SetControlOrderByText(KeybindTab, "Kill Aura Single Mode", 120)
+SetControlOrderByText(KeybindTab, "Kill Aura Multi Mode", 130)
+SetControlOrderByText(KeybindTab, "Kill Aura Adaptive Mode", 140)
+SetControlOrderByText(KeybindTab, "Auto Target", 150)
+SetControlOrderByText(KeybindTab, "Auto Ability", 160)
+SetControlOrderByText(KeybindTab, "Force Linear Bullet Pattern", 170)
+SetControlOrderByText(KeybindTab, "Remove Bullet Spread", 180)
+SetControlOrderByText(KeybindTab, "Bullets Penetrate Terrain", 190)
 
 SetLabelOrder(KeybindTab, "Automation", 200)
 SetControlOrderByText(KeybindTab, "Auto EXP", 210)
@@ -1318,7 +1294,6 @@ SetControlOrderByText(KeybindTab, "Skin Changer", 330)
 SetControlOrderByText(KeybindTab, "Anti Staff", 340)
 SetControlOrderByText(KeybindTab, "No Replication Delay", 410)
 SetControlOrderByText(KeybindTab, "Debuff Immunity", 420)
-SetControlOrderByText(KeybindTab, "Quest Teleport", 430)
 SetControlOrderByText(KeybindTab, "Boost Movement Speed", 440)
 SetControlOrderByText(KeybindTab, "Anti AFK", 450)
 SetControlOrderByText(KeybindTab, "Hide Own Projectiles", 460)
