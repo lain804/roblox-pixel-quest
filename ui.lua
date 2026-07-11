@@ -112,8 +112,6 @@ local PlayerTab = Library:CreateTab({ Name = "Player" })
 local KeybindTab = Library:CreateTab({ Name = "Keybinds" })
 local ConfigTab = Library:CreateTab({ Name = "Config" })
 
-PQ.FixPlayerShootTime:Toggle(true)
-
 -- The library sizes each tab's scroll canvas from layout.AbsoluteContentSize (the
 -- already-scaled height) but writes it into CanvasSize.Offset, which the UIScale
 -- then multiplies again -- so the canvas ends up height*scale^2. On mobile (scale
@@ -274,7 +272,7 @@ AutoAbilityMoveSequenceDropdown = CombatTab:Dropdown({
     end
 })
 
-PQ.AutoAbility:SetSelectedSequence(AutoAbilityDefaultMoveSequence)
+PQ.AutoAbility:SetSelectedSequence(AutoAbilityMoveSequenceDropdown:GetValue() or AutoAbilityDefaultMoveSequence)
 
 CombatTab:Separator({ Text = "" })
 CombatTab:Label({ Text = "Auto Target" })
